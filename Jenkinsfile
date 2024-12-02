@@ -1,46 +1,47 @@
-pipeline {
-    agent any
-
-    tools {
-        gradle 'Gradle-6'
+pipeline { 
+  agent any
+   tools { 
+    gradle "Gradle"
+  }
+  stages { 
+    stage('Clone Repository') {
+      steps { 
+        git credentialsId: 'my-ssh-credentials', url: 'git@github.com:Ramayan0/java-todo.git'
+      }
     }
-
-
-    environment {
-        VERSION_NUMBER = '1.0'
-    }
-
-    stages {
-        stage('Clone repository') {
-            steps {
-                echo 'Cloning repository'
-                git 'https://github.com/brianmarete/java-todo.git'
-            }
-        }
-        stage('Build ') {
-            steps {
-                echo "Build number ${BUILD_NUMBER}"
-                // withGradle() {
-                    sh 'gradle build'
-                // }
-            }
-        }
-        stage('Test') {
-            steps {
-                echo 'Testing the project'
-                // withGradle() {
-                    sh 'gradle test'
-                // }
-            }
+    stage('Build project') {
+        steps { 
+            sh 'gradle build'
         }
     }
-    post {
-        success {
-            slackSend color: "good", message: "Build #${BUILD_NUMBER} ran successfully"
+    stage('Tests') {
+        steps { 
+            sh 'gradle test'
+            
         }
         
-        failure {
-            slackSend color: "danger", message: "Build #${BUILD_NUMBER} failed"
-        }
     }
+    stage('Check Remotes') {
+  steps {
+    sh 'git remote -v'
+  }
+}
+stage('Remove Existing Remote') {
+  steps {
+    sh 'git remote remove heroku || true'  // || true ensures no error if the remote doesn't exist
+  }
+}
+
+    stage('Deploy to Heroku') {
+  steps {
+    withCredentials([usernamePassword(credentialsId: 'heroku', passwordVariable: 'HEROKU_API_KEY', usernameVariable: 'HEROKU_USER')]) {
+      sh '''
+        git remote add heroku https://$HEROKU_USER:$HEROKU_API_KEY@git.heroku.com/calm-fortress-08149.git
+        git push heroku master
+      '''
+    }
+  }
+}
+
+  }
 }
